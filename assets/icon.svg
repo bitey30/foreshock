@@ -1,0 +1,10 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="foreshock">
+  <rect width="128" height="128" rx="28" fill="#0B1120"/>
+  <g transform="translate(64 64)" fill="none" stroke="#F59E0B" stroke-width="3">
+    <circle r="16" opacity="0.95"/>
+    <circle r="30" opacity="0.6"/>
+    <circle r="44" opacity="0.34"/>
+    <circle r="58" opacity="0.15"/>
+  </g>
+  <circle cx="64" cy="64" r="7" fill="#F59E0B"/>
+</svg>

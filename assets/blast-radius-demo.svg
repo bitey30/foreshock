@@ -1,0 +1,42 @@
+<svg width="860" height="452" viewBox="0 0 860 452" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="foreshock blast-radius detection, live">
+  <defs>
+    <style>
+      .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 15px; }
+      .dim { fill: #64748B; }
+      .fg  { fill: #E2E8F0; }
+      .hi  { fill: #F8FAFC; font-weight: 600; }
+      .amber { fill: #F59E0B; }
+      .green { fill: #34D399; }
+    </style>
+  </defs>
+
+  <!-- window -->
+  <rect width="860" height="452" rx="14" fill="#0B1120"/>
+  <rect x="0.5" y="0.5" width="859" height="451" rx="13.5" fill="none" stroke="#1E293B"/>
+
+  <!-- title bar -->
+  <rect width="860" height="46" rx="14" fill="#111A2E"/>
+  <rect y="32" width="860" height="14" fill="#111A2E"/>
+  <circle cx="26" cy="23" r="6" fill="#FF5F56"/>
+  <circle cx="48" cy="23" r="6" fill="#FFBD2E"/>
+  <circle cx="70" cy="23" r="6" fill="#27C93F"/>
+  <text x="430" y="28" text-anchor="middle" class="mono dim" font-size="13">Claude Code · flask · agent edit</text>
+  <line x1="0" y1="46" x2="860" y2="46" stroke="#1E293B"/>
+
+  <!-- transcript -->
+  <text class="mono" xml:space="preserve">
+    <tspan x="28" y="82" class="dim"># agent adds a keyword param to url_for()  →  Edit src/flask/helpers.py</tspan>
+    <tspan x="28" y="124" class="hi">foreshock — you edited src/flask/helpers.py</tspan>
+    <tspan x="28" y="150" class="fg">  • </tspan><tspan class="amber">API change: </tspan><tspan class="fg">~url_for (declaration)</tspan>
+    <tspan x="28" y="176" class="fg">  • </tspan><tspan class="amber">blast radius: </tspan><tspan class="fg">33 file(s) import this </tspan><tspan class="amber" font-weight="600">[SHARED-CORE]</tspan>
+    <tspan x="28" y="202" class="fg">  • who imports this:</tspan>
+    <tspan x="28" y="228" class="amber">      → </tspan><tspan class="fg">src/flask/__init__.py </tspan><tspan class="dim">(abort, flash, get_flashed_messages, …)</tspan>
+    <tspan x="28" y="254" class="fg">        src/flask/app.py </tspan><tspan class="dim">(get_debug_flag, get_load_dotenv, …)</tspan>
+    <tspan x="28" y="280" class="fg">        src/flask/blueprints.py </tspan><tspan class="dim">(send_from_directory)</tspan>
+    <tspan x="28" y="306" class="fg">        src/flask/cli.py </tspan><tspan class="dim">(get_debug_flag, get_load_dotenv)</tspan>
+    <tspan x="28" y="332" class="fg">        src/flask/templating.py </tspan><tspan class="dim">(stream_with_context)</tspan>
+    <tspan x="28" y="358" class="dim">      …</tspan>
+    <tspan x="28" y="384" class="fg">  • </tspan><tspan class="amber">→</tspan><tspan class="fg"> = imports a CHANGED symbol — re-check those call sites</tspan>
+    <tspan x="28" y="410" class="fg">  • </tspan><tspan class="green">covered by tests: </tspan><tspan class="fg">tests/test_helpers.py</tspan>
+  </text>
+</svg>
