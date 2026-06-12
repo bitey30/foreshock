@@ -1,0 +1,49 @@
+function isTransforming(
+  _schema: schemas.$ZodType,
+  _ctx?: {
+    seen: Set<schemas.$ZodType>;
+  }
+): boolean {
+  const ctx = _ctx ?? { seen: new Set() };
+
+  if (ctx.seen.has(_schema)) return false;
+  ctx.seen.add(_schema);
+
+  const def = (_schema as schemas.$ZodTypes)._zod.def;
+
+  if (def.type === "transform") return true;
+
+  if (def.type === "array") return isTransforming(def.element, ctx);
+  if (def.type === "set") return isTransforming(def.valueType, ctx);
+  if (def.type === "lazy") return isTransforming(def.getter(), ctx);
+
+  if (
+    def.type === "promise" ||
+    def.type === "optional" ||
+    def.type === "nonoptional" ||
+    def.type === "nullable" ||
+    def.type === "readonly" ||
+    def.type === "default" ||
+    def.type === "prefault"
+  ) {
+    return isTransforming(def.innerType, ctx);
+  }
+
+  if (def.type === "intersection") {
+    return isTransforming(def.left, ctx) || isTransforming(def.right, ctx);
+  }
+  if (def.type === "record" || def.type === "map") {
+    return isTransforming(def.keyType, ctx) || isTransforming(def.valueType, ctx);
+  }
+  if (def.type === "pipe") {
+    if (_schema._zod.traits.has("$ZodCodec")) return true;
+    return isTransforming(def.in, ctx) || isTransforming(def.out, ctx);
+  }
+
+  if (def.type === "object") {
+    for (const key in def.shape) {
+      if (isTransforming(def.shape[key]!, ctx)) return true;
+    }
+    return false;
+  }
+  if 
