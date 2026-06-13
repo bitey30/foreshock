@@ -37,6 +37,12 @@ linter, not a dashboard, not a post-commit PR report — a context layer the age
 bug exists.* It's **local and dependency-free** (pure Python stdlib, no network), and it stays
 **silent** on edits that don't matter, so it's signal, not noise.
 
+**Where it shines: changing existing code.** foreshock is at its best when an agent **modifies
+established code** — refactors, renames, signature or schema changes — because that's exactly where a
+small, local-looking edit ripples across a codebase the agent isn't holding in its head. On brand-new,
+greenfield code with nothing depending on it yet, there's nothing to break, so it stays quiet. The
+more wired-in the thing you're touching, the more foreshock has to say.
+
 <p align="center">
   <img src="assets/blast-radius-demo.svg" alt="foreshock detecting blast radius live during an agent edit to Flask's url_for" width="780">
 </p>
