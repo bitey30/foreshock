@@ -50,6 +50,12 @@ if not root:
     sys.exit(0)
 
 event = payload.get("hook_event_name") or "PostToolUse"   # Pre = preview, Post = confirm
+
+# Default to ONE packet per edit — the preview. The after-edit confirm is opt-in, so foreshock
+# never doubles its footprint in the agent's context. (FORESHOCK_CONFIRM=1 re-enables it.)
+if event == "PostToolUse" and not os.environ.get("FORESHOCK_CONFIRM"):
+    sys.exit(0)
+
 deep = bool(os.environ.get("FORESHOCK_DEEP"))             # Tier 3 runs a real checker — give it room
 
 try:

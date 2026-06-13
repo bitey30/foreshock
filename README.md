@@ -30,11 +30,12 @@ instant the agent touches that function it sees *"blast radius: 14 files `[SHARE
 3 that import the changed symbol, here's the test that covers it."* So it fixes all of it now — or,
 with deep mode on, sees the **actual compiler errors the change would cause before it even applies.**
 
-It rides **inside** the agent loop (Claude Code / Cursor / Codex) as a hook that fires **before** an
-edit (a preview — *"this change would…"*) and **after** it (a confirm). Not a linter, not a dashboard,
-not a post-commit PR report — a context layer the agent consumes *before the bug exists.* It's
-**local and dependency-free** (pure Python stdlib, no network), and it stays **silent** on edits that
-don't matter, so it's signal, not noise.
+It rides **inside** the agent loop (Claude Code / Cursor / Codex) as a hook. By default it fires
+**once per edit** — a preview *before* the change (*"this change would…"*); the after-edit confirm is
+opt-in (`FORESHOCK_CONFIRM=1`), so it never doubles its footprint in the agent's context. Not a
+linter, not a dashboard, not a post-commit PR report — a context layer the agent consumes *before the
+bug exists.* It's **local and dependency-free** (pure Python stdlib, no network), and it stays
+**silent** on edits that don't matter, so it's signal, not noise.
 
 <p align="center">
   <img src="assets/blast-radius-demo.svg" alt="foreshock detecting blast radius live during an agent edit to Flask's url_for" width="780">

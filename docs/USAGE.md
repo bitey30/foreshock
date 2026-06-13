@@ -192,16 +192,16 @@ that you've found everything.
 
 ## Change preview (Tier 1) & deep simulation (Tier 3)
 
-foreshock fires on **two** events:
+By default foreshock fires **once per edit** — the **preview**:
 
-- **`PreToolUse` — preview.** *Before* an edit is applied, it projects the change from the
+- **`PreToolUse` — preview (default).** *Before* an edit is applied, it projects the change from the
   proposed `old_string`/`new_string` and shows what it *would* do:
   `foreshock — preview: this change to X would… • API change: +sum; −add • blast radius: …`.
   The agent sees the consequences while it can still adjust the edit. Nothing is written to disk.
-- **`PostToolUse` — confirm.** After the edit lands, the familiar `you edited X` packet.
+- **`PostToolUse` — confirm (opt-in).** Set `FORESHOCK_CONFIRM=1` to *also* get a packet after the
+  edit lands (`you edited X`). Off by default so foreshock never doubles its context footprint.
 
-`install.sh` registers both. If you want only the preview, keep the `PreToolUse` entry in
-`~/.claude/settings.json` and drop the `PostToolUse` one.
+`install.sh` registers both hooks, but the Post one stays silent unless `FORESHOCK_CONFIRM=1`.
 
 ### Deep simulation — opt-in
 Set `FORESHOCK_DEEP=1` and the preview adds a **real-checker** pass: foreshock copies the repo to

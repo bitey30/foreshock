@@ -37,10 +37,12 @@ if command -v jq >/dev/null 2>&1; then
         .hooks.PreToolUse  += [$h] | .hooks.PostToolUse += [$h] | .hooks.Stop += [$s]
       ' "$SETTINGS" > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
     mv "$tmp" "$SETTINGS"
-    echo "✓ registered Pre (preview) + Post (confirm) + Stop (session review) hooks in $SETTINGS (backup: $SETTINGS.bak)"
+    echo "✓ registered the foreshock hooks in $SETTINGS (backup: $SETTINGS.bak)"
+    echo "  → default: ONE preview packet per edit (no context bombardment)."
     echo "  → restart Claude Code; hooks load at session start."
-    echo "  → Tier 3 deep simulation is opt-in: export FORESHOCK_DEEP=1 (runs the project's real checker)."
-    echo "  → 1–5 usefulness ratings + end-of-session review are opt-in: export FORESHOCK_RATE=1."
+    echo "  → after-edit confirm packet (opt-in): export FORESHOCK_CONFIRM=1"
+    echo "  → Tier 3 deep simulation (opt-in): export FORESHOCK_DEEP=1 (runs the project's real checker)."
+    echo "  → 1–5 usefulness ratings + end-of-session review (opt-in): export FORESHOCK_RATE=1."
   else
     rm -f "$tmp"
     echo "⚠ couldn't auto-edit $SETTINGS — add an Edit|Write|MultiEdit hook calling impact_hook.py under BOTH .hooks.PreToolUse and .hooks.PostToolUse."
