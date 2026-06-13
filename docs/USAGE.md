@@ -56,6 +56,11 @@ This:
 It's **idempotent**: re-run it any time you pull an update to re-sync the files. If `jq`
 isn't installed it prints the JSON snippet for you to merge by hand.
 
+**Always-on / self-healing.** Installing also registers a `SessionStart` hook (`foreshock_ensure.py`)
+that re-adds foreshock's hooks if `~/.claude/settings.json` ever loses them (e.g. another tool or
+`/config` rewrites the hooks block). So foreshock can't silently drift off between sessions. (It
+can't recover from `settings.json` being deleted outright — re-run `install.sh` for that.)
+
 **Restart Claude Code afterward** — hooks load at session start.
 
 The hook **self-roots**: it locates the edited file's repo on its own, so the same global

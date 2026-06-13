@@ -23,21 +23,27 @@ JSON
 read -r -d '' STOPOBJ <<'JSON'
 { "hooks": [ { "type": "command", "command": "python3 \"$HOME/.claude/hooks/foreshock_stop.py\"" } ] }
 JSON
+# SessionStart hook: self-heal — re-register foreshock if its hooks ever drift off
+read -r -d '' ENSUREOBJ <<'JSON'
+{ "hooks": [ { "type": "command", "command": "python3 \"$HOME/.claude/hooks/foreshock_ensure.py\"" } ] }
+JSON
 
 if command -v jq >/dev/null 2>&1; then
   [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
   cp "$SETTINGS" "$SETTINGS.bak"
   tmp="$(mktemp)"
   # idempotent: strip any existing impact_hook.py entries, then re-add to Pre + Post
-  if jq --argjson h "$HOOKOBJ" --argjson s "$STOPOBJ" '
-        (.hooks.PreToolUse  //= []) | (.hooks.PostToolUse //= []) | (.hooks.Stop //= []) |
-        .hooks.PreToolUse  |= map(select(((.hooks[0].command // "") | test("impact_hook.py")) | not)) |
-        .hooks.PostToolUse |= map(select(((.hooks[0].command // "") | test("impact_hook.py")) | not)) |
-        .hooks.Stop        |= map(select(((.hooks[0].command // "") | test("foreshock_stop.py")) | not)) |
-        .hooks.PreToolUse  += [$h] | .hooks.PostToolUse += [$h] | .hooks.Stop += [$s]
+  if jq --argjson h "$HOOKOBJ" --argjson s "$STOPOBJ" --argjson e "$ENSUREOBJ" '
+        (.hooks.PreToolUse //= []) | (.hooks.PostToolUse //= []) | (.hooks.Stop //= []) | (.hooks.SessionStart //= []) |
+        .hooks.PreToolUse   |= map(select(((.hooks[0].command // "") | test("impact_hook.py")) | not)) |
+        .hooks.PostToolUse  |= map(select(((.hooks[0].command // "") | test("impact_hook.py")) | not)) |
+        .hooks.Stop         |= map(select(((.hooks[0].command // "") | test("foreshock_stop.py")) | not)) |
+        .hooks.SessionStart |= map(select(((.hooks[0].command // "") | test("foreshock_ensure.py")) | not)) |
+        .hooks.PreToolUse += [$h] | .hooks.PostToolUse += [$h] | .hooks.Stop += [$s] | .hooks.SessionStart += [$e]
       ' "$SETTINGS" > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
     mv "$tmp" "$SETTINGS"
     echo "✓ registered the foreshock hooks in $SETTINGS (backup: $SETTINGS.bak)"
+    echo "  → self-heal: a SessionStart hook re-registers foreshock if it ever drifts off."
     echo "  → default: ONE preview packet per edit (no context bombardment)."
     echo "  → restart Claude Code; hooks load at session start."
     echo "  → after-edit confirm packet (opt-in): export FORESHOCK_CONFIRM=1"
