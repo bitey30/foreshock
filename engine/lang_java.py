@@ -18,7 +18,8 @@ def specs(src):
 
 def build_index(root, files, text):
     fqcn2file = {}
-    for f, src in text.items():
+    for f in files:
+        src = text[f]
         m = re.search(r"^\s*package\s+([\w.]+)\s*;", src, re.M)
         pkg = m.group(1) if m else ""
         cls = os.path.basename(f)[:-5]

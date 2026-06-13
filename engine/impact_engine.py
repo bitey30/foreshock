@@ -32,7 +32,42 @@ for ext in ALL_EXTS:
 allfiles = sorted({f for f in allfiles if not SKIP.search(f)})
 if "--file" in sys.argv and len(allfiles) > 12000:
     sys.exit(0)                                   # portability guard (hook has ~15s)
-text = {f: open(f, errors="ignore").read() for f in allfiles}
+class _LazyText:
+    """Reads a file on first access and memoizes it — so a warm run never touches unchanged files."""
+    def __init__(self): self._c = {}
+    def __getitem__(self, f):
+        v = self._c.get(f)
+        if v is None:
+            try: v = open(f, errors="ignore").read()
+            except OSError: v = ""
+            self._c[f] = v
+        return v
+text = _LazyText()
+
+# ---- persistent per-file parse cache: only changed files get re-read / re-parsed ----
+import hashlib, atexit
+_CACHE_DIR = os.path.join(os.path.expanduser("~"), ".cache", "foreshock")
+_CACHE_FILE = os.path.join(_CACHE_DIR, hashlib.sha1(os.path.abspath(ROOT).encode()).hexdigest()[:16] + ".json")
+try: _cache = json.load(open(_CACHE_FILE))
+except Exception: _cache = {}
+_newcache = {}
+def specs_of(f, p):
+    """p.specs(f) memoized on disk, keyed by (mtime, size). Unchanged file → no read, no re-parse."""
+    try:
+        st = os.stat(f); mt, sz = st.st_mtime, st.st_size
+    except OSError:
+        return p.specs(text[f])
+    ent = _cache.get(f)
+    sp = ent[2] if (ent and ent[0] == mt and ent[1] == sz) else sorted(p.specs(text[f]))
+    _newcache[f] = [mt, sz, sp]
+    return sp
+@atexit.register
+def _save_cache():
+    try:
+        os.makedirs(_CACHE_DIR, exist_ok=True)
+        json.dump(_newcache, open(_CACHE_FILE, "w"))
+    except Exception:
+        pass
 rel = lambda f: os.path.relpath(f, ROOT)
 def plugin_of(f):
     return EXT2PLUGIN.get(os.path.splitext(f)[1])
@@ -45,7 +80,7 @@ fileset = set(src_files)
 ctx = {}
 for p in PLUGINS:
     pfiles = [f for f in src_files if plugin_of(f) is p]
-    ctx[p] = p.build_index(ROOT, pfiles, {f: text[f] for f in pfiles}) if pfiles else {}
+    ctx[p] = p.build_index(ROOT, pfiles, text) if pfiles else {}
 
 # ---- import graph ----
 # a plugin's resolve() may return one path or many (package-as-directory langs like Go)
@@ -55,7 +90,7 @@ def _targets(r):
 imp = collections.defaultdict(set)
 for f in src_files:
     p = plugin_of(f)
-    for spec in p.specs(text[f]):
+    for spec in specs_of(f, p):
         for t in _targets(p.resolve(f, spec, ctx[p])):
             if t and t != f and t in fileset: imp[f].add(t)
 dependents = collections.defaultdict(set)
@@ -197,7 +232,7 @@ if "--file" in sys.argv:
             lines.append("  • no dependent's import contract changed — a behavior change is the only thing to weigh")
 
     covering = sorted(rel(tf) for tf in test_files if plugin_of(tf) is p
-                      and any(absf in _targets(p.resolve(tf, spec, ctx[p])) for spec in p.specs(text[tf])))
+                      and any(absf in _targets(p.resolve(tf, spec, ctx[p])) for spec in specs_of(tf, plugin_of(tf))))
     if covering:
         lines.append("  • covered by tests: " + ", ".join(covering[:5]) + (" …" if len(covering) > 5 else ""))
 
