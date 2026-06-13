@@ -16,10 +16,10 @@ import os, re, sys, json, tempfile, shutil, subprocess
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE_DIR = os.path.join(HERE, "engine")
 sys.path.insert(0, ENGINE_DIR)
-import lang_ts, lang_python, lang_java, lang_go, lang_ruby, lang_csharp
+import lang_ts, lang_python, lang_java, lang_go, lang_ruby, lang_csharp, lang_sql
 
-PLUGINS = {"ts": lang_ts, "python": lang_python, "java": lang_java,
-           "go": lang_go, "ruby": lang_ruby, "csharp": lang_csharp}
+PLUGINS = {"ts": lang_ts, "python": lang_python, "java": lang_java, "go": lang_go,
+           "ruby": lang_ruby, "csharp": lang_csharp, "sql": lang_sql}
 
 _fail = []
 def check(name, ok, detail=""):
@@ -79,6 +79,14 @@ eq("csharp: enum members", lang_csharp.unions("public enum S { Active, Inactive 
    {"Active", "Inactive"})
 has("csharp: using spec", lang_csharp.specs("using App.Util;"), "App.Util")
 
+sql_schema = ("CREATE TABLE orders (\n  id serial PRIMARY KEY,\n"
+              "  status text CHECK (status IN ('open','paid','void')),\n  amount numeric\n);")
+eq("sql: table + qualified columns", lang_sql.exported_symbols(sql_schema),
+   {"orders", "orders.id", "orders.status", "orders.amount"})
+eq("sql: CHECK-IN closed set", lang_sql.unions(sql_schema).get("status"), {"open", "paid", "void"})
+has("sql: FK reference spec", lang_sql.specs("FOREIGN KEY (oid) REFERENCES orders (id)"), "orders")
+has("sql: FROM reference spec", lang_sql.specs("SELECT id FROM orders WHERE x=1"), "orders")
+
 
 # ── D. resolution links the right file(s) — incl. package-as-directory (list) ────
 print("D. import resolution links the right files")
@@ -122,13 +130,17 @@ _resolve_case("ruby", {"lib.rb": "class C\nend", "app.rb": 'require_relative "li
 _resolve_case("csharp",  # namespace spans files → list resolve
               {"a.cs": "namespace N;\npublic class A {}", "b.cs": "using N;\npublic class B {}"},
               "b.cs", "N", "a.cs")
+_resolve_case("sql",  # a query/FK file references a table defined elsewhere
+              {"schema.sql": "CREATE TABLE orders (id int);",
+               "report.sql": "SELECT id FROM orders;"},
+              "report.sql", "orders", "schema.sql")
 
 
 # ── E. the cache is deterministic (warm output == cold output) ──────────────────
 print("E. cache determinism (warm == cold)")
 def _engine(root, f, env_extra):
     return subprocess.run([sys.executable, os.path.join(ENGINE_DIR, "impact_engine.py"), "--file", f],
-                          capture_output=True, text=True,
+                          capture_output=True, text=True, stdin=subprocess.DEVNULL,  # else engine blocks on stdin
                           env={**os.environ, "FS_ROOT": root, **env_extra}).stdout
 
 croot = tempfile.mkdtemp(prefix="fs_self_cache_")

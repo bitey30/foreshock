@@ -17,7 +17,7 @@ ENGINE = os.path.join(HERE, "impact_engine.py")
 
 
 # must cover every extension the lang_*.py plugins handle (keep in sync when adding a language)
-EXTS = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".java", ".go", ".rb", ".cs")
+EXTS = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".java", ".go", ".rb", ".cs", ".sql")
 # repo-root markers across ecosystems
 ROOT_MARKERS = (".git", "package.json", "pyproject.toml", "setup.py", "setup.cfg", "go.mod",
                 "go.work", "pom.xml", "build.gradle", "build.gradle.kts", "Cargo.toml", "Gemfile")

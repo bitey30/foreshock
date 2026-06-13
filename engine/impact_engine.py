@@ -18,6 +18,8 @@ import os, re, sys, glob, json, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lang_ts, lang_python, lang_java, lang_go, lang_ruby, lang_csharp
 PLUGINS = [lang_ts, lang_python, lang_java, lang_go, lang_ruby, lang_csharp]
+if os.environ.get("FORESHOCK_SQL"):       # opt-in: SQL schema coupling (tables/columns, FK, CHECK)
+    import lang_sql; PLUGINS.append(lang_sql)
 EXT2PLUGIN = {ext: p for p in PLUGINS for ext in p.EXTENSIONS}
 ALL_EXTS = tuple(EXT2PLUGIN)
 

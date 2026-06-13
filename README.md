@@ -148,6 +148,7 @@ variant types. **Adding a language is one file.**
 | `lang_go.py` | Go — package-as-directory imports (`module/sub` → all files in that package), Capitalised exports, typed `const`/`iota` variant groups |
 | `lang_ruby.py` | Ruby — `require_relative`/`require`, class/module/`def` surface (no enums) |
 | `lang_csharp.py` | C# — `using` namespace imports (a namespace spans many files), public type/method exports, `enum` variants |
+| `lang_sql.py` | SQL — *opt-in* (`FORESHOCK_SQL=1`). Tables + qualified `table.column` as symbols, FK/`FROM`/`JOIN` as edges, `CHECK (col IN …)` as variants. Precise: columns count only when qualified |
 | `framework_django.py` | Django adapter — recovers string-FK model coupling (`ForeignKey("app.Model")`) the import graph can't see |
 | `impact_hook.py` | the `PreToolUse` (preview) + `PostToolUse` (confirm) hook — pipes the tool payload to the engine and injects the packet |
 

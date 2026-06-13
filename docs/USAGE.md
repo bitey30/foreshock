@@ -33,7 +33,8 @@ shared. If you're offline, it works exactly the same.
   `setup.py`, `go.mod`, `pom.xml`, `build.gradle`, or `Cargo.toml`.
 
 Languages: **TypeScript / JavaScript, Python, Java, Go, Ruby, C#**, plus a **Django** framework
-adapter. Other files are silently ignored.
+adapter and **SQL** schema coupling (opt-in: `export FORESHOCK_SQL=1` — tables/columns, FK edges,
+`CHECK (col IN …)` variants). Other files are silently ignored.
 
 ---
 
