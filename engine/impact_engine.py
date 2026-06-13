@@ -93,6 +93,19 @@ for f in src_files:
     for spec in specs_of(f, p):
         for t in _targets(p.resolve(f, spec, ctx[p])):
             if t and t != f and t in fileset: imp[f].add(t)
+
+# ---- framework convention edges: coupling the import graph can't see (e.g. Django string FKs) ----
+fw_edges = set()
+for _mod in ("framework_django",):
+    try:
+        fw = __import__(_mod)
+        if fw.detect(ROOT):
+            for a, b in fw.edges(ROOT, src_files, text):
+                if a in fileset and b in fileset and a != b:
+                    imp[a].add(b); fw_edges.add((a, b))
+    except Exception:
+        pass
+
 dependents = collections.defaultdict(set)
 for a, bs in imp.items():
     for b in bs: dependents[b].add(a)
@@ -221,7 +234,9 @@ if "--file" in sys.argv:
         for d in direct:
             used = plugin_of(d).imported_names(text[d], absf, d, ctx[plugin_of(d)])
             hit = used & changed if changed else set()
-            tag = f" ({', '.join(sorted(used)[:4])})" if used else ""
+            if used:               tag = f" ({', '.join(sorted(used)[:4])})"
+            elif (d, absf) in fw_edges: tag = " (framework relation — no import)"
+            else:                  tag = ""
             rows.append(("→ " if hit else "  ") + f"{rel(d)}{tag}")
             if hit: affected.append(rel(d))
         lines.append("  • who imports this:")

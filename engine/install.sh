@@ -11,9 +11,9 @@ SETTINGS="$HOME/.claude/settings.json"
 
 # 1. install the engine, hook, deep-check, and all language plugins
 mkdir -p "$HOOKS"
-cp "$HERE"/impact_engine.py "$HERE"/impact_hook.py "$HERE"/deep_check.py "$HERE"/lang_*.py "$HOOKS/"
+cp "$HERE"/impact_engine.py "$HERE"/impact_hook.py "$HERE"/deep_check.py "$HERE"/lang_*.py "$HERE"/framework_*.py "$HOOKS/"
 chmod +x "$HOOKS/impact_hook.py"
-echo "✓ installed engine + hook + deep_check + $(ls "$HERE"/lang_*.py | wc -l | tr -d ' ') language plugins → $HOOKS"
+echo "✓ installed engine + hook + deep_check + $(ls "$HERE"/lang_*.py | wc -l | tr -d ' ') language plugins + $(ls "$HERE"/framework_*.py | wc -l | tr -d ' ') framework adapters → $HOOKS"
 
 # the hook object registered on both events (timeout covers Tier 3 deep mode when FORESHOCK_DEEP=1)
 read -r -d '' HOOKOBJ <<'JSON'
