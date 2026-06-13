@@ -16,14 +16,25 @@
 
 ---
 
+**In one line:** foreshock is a tiny local hook that, the moment an AI coding agent edits a file,
+tells it what *else* that change affects — *who depends on it, which tests cover it, what the compiler
+won't catch* — so the agent fixes the ripple before it moves on.
+
 When a coding agent edits a file, it thinks *locally* — one function, one signature — and then moves
-on, blind to what it just put at risk. **foreshock gives it peripheral vision.** At the moment of the
-edit, it hands the agent a short context packet — *what you touched → who depends on it → what to
-check* — and then gets out of the way.
+on, blind to what it just put at risk. **foreshock gives it peripheral vision.**
+
+**A concrete example.** An agent renames a function, updates the one call site it can see, and
+continues — not realizing that function is imported by 14 other files, three of which now break. A
+human catches it a day later in review. foreshock catches it *in the same breath as the edit*: the
+instant the agent touches that function it sees *"blast radius: 14 files `[SHARED-CORE]`, here are the
+3 that import the changed symbol, here's the test that covers it."* So it fixes all of it now — or,
+with deep mode on, sees the **actual compiler errors the change would cause before it even applies.**
 
 It rides **inside** the agent loop (Claude Code / Cursor / Codex) as a hook that fires **before** an
 edit (a preview — *"this change would…"*) and **after** it (a confirm). Not a linter, not a dashboard,
-not a post-commit report — a context layer the agent consumes *before the bug exists.*
+not a post-commit PR report — a context layer the agent consumes *before the bug exists.* It's
+**local and dependency-free** (pure Python stdlib, no network), and it stays **silent** on edits that
+don't matter, so it's signal, not noise.
 
 <p align="center">
   <img src="assets/blast-radius-demo.svg" alt="foreshock detecting blast radius live during an agent edit to Flask's url_for" width="780">
@@ -48,7 +59,22 @@ it.* Proactive, in-loop, single purpose.
 ## What you get — the packet
 
 For each edit, the engine emits a **diff-aware, symbol-level** packet describing the *consequences* of
-the change, not a raw file count:
+the change, not a raw file count. A packet reads like this:
+
+```text
+foreshock — you edited src/auth/session.ts
+  • API change: ~validateToken (declaration)
+  • blast radius: 11 file(s) import this [SHARED-CORE]
+  • who imports this:
+      → src/api/middleware.ts (validateToken)
+      → src/api/login.ts (validateToken)
+        src/util/jwt.ts (decode)
+      … (+6 more)
+  • → = imports a CHANGED symbol — re-check those call sites
+  • covered by tests: src/auth/session.test.ts
+```
+
+Line by line:
 
 - **What changed about the public surface** — `API change: +foo` / `~bar (declaration)` vs
   `content-only: changed the body of X, import contract intact`. (Reconstructed from the edit's
