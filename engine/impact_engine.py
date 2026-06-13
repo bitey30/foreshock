@@ -237,10 +237,15 @@ if "--file" in sys.argv:
             if used:               tag = f" ({', '.join(sorted(used)[:4])})"
             elif (d, absf) in fw_edges: tag = " (framework relation — no import)"
             else:                  tag = ""
-            rows.append(("→ " if hit else "  ") + f"{rel(d)}{tag}")
+            rows.append((bool(hit), ("→ " if hit else "  ") + f"{rel(d)}{tag}"))
             if hit: affected.append(rel(d))
+        rows.sort(key=lambda r: not r[0])          # importers of a CHANGED symbol (→) first, then by name
         lines.append("  • who imports this:")
-        lines += ["      " + r for r in rows[:8]] + (["      …"] if len(rows) > 8 else [])
+        lines += ["      " + r for _, r in rows[:8]]
+        if len(rows) > 8:
+            hidden_hits = sum(1 for h, _ in rows[8:] if h)
+            extra = f", incl. {hidden_hits} more importing a changed symbol" if hidden_hits else ""
+            lines.append(f"      … (+{len(rows) - 8} more{extra})")
         if changed and affected:
             lines.append("  • → = imports a CHANGED symbol — re-check those call sites")
         elif content_only:
