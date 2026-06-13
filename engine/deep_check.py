@@ -95,6 +95,14 @@ def _go_diags(cr, timeout):
     out = _run(["go", "build", "./..."], cr, timeout)
     return set(l for l in (out or "").splitlines() if re.search(r"\.go:\d+:", l))
 
+def _ruby_diags(cr, rel_files, timeout):             # `ruby -c` is per-file syntax only
+    diags = set()
+    for p in rel_files:
+        out = _run(["ruby", "-c", os.path.join(cr, p)], cr, timeout)
+        if out and "Syntax OK" not in out:
+            diags |= set(l for l in out.splitlines() if ".rb:" in l)
+    return diags
+
 
 def run(edited_abs, new_content, root, dependents=(), timeout=120):
     ext = os.path.splitext(edited_abs)[1]
@@ -113,6 +121,9 @@ def run(edited_abs, new_content, root, dependents=(), timeout=120):
     elif ext == ".go":
         if not _toolchain_ok(["go", "version"], r"go version"): return None
         checker = lambda cr: _go_diags(cr, timeout)
+    elif ext == ".rb":
+        if not _toolchain_ok(["ruby", "--version"], r"ruby \d"): return None
+        checker = lambda cr: _ruby_diags(cr, rel_files, timeout)
     else:
         return None
 
@@ -123,7 +134,9 @@ def run(edited_abs, new_content, root, dependents=(), timeout=120):
         before = checker(copy_root)
         open(os.path.join(copy_root, relf), "w", encoding="utf-8").write(new_content)
         after = checker(copy_root)
-        return sorted(after - before)
+        # rewrite temp-copy paths back to repo-relative so diagnostics read cleanly
+        return [d.replace(copy_root + os.sep, "").replace(copy_root + "/", "")
+                for d in sorted(after - before)]
     except Exception:
         return None
     finally:

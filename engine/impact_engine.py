@@ -16,8 +16,8 @@ import os, re, sys, glob, json, collections
 
 # ---- plugin registry ----
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import lang_ts, lang_python, lang_java, lang_go
-PLUGINS = [lang_ts, lang_python, lang_java, lang_go]
+import lang_ts, lang_python, lang_java, lang_go, lang_ruby, lang_csharp
+PLUGINS = [lang_ts, lang_python, lang_java, lang_go, lang_ruby, lang_csharp]
 EXT2PLUGIN = {ext: p for p in PLUGINS for ext in p.EXTENSIONS}
 ALL_EXTS = tuple(EXT2PLUGIN)
 
