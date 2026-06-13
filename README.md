@@ -122,7 +122,13 @@ Run it by hand, too:
 ```bash
 python3 engine/impact_engine.py                  # repo map: blast-radius hot spots
 python3 engine/impact_engine.py --file src/x.ts  # context packet for one file
+python3 selftest.py                              # deterministic plumbing checks
 ```
+
+`selftest.py` asserts *facts* — does the hook fire on each language, do imports resolve, do
+variants parse, is the cache deterministic — **not** packet wording. It deliberately doesn't pin
+output: foreshock assists AI across wildly different codebases, so whether a packet *helps* is the
+job of the ratings/eval loop ([`FORESHOCK_RATE`](docs/USAGE.md)), not a golden-file test.
 
 **Full setup, packet anatomy, and troubleshooting → [docs/USAGE.md](docs/USAGE.md)**
 
