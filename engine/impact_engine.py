@@ -83,6 +83,23 @@ def reconstruct_old(new_src, ti, tool):
         return None, None
     return None, None
 
+def reconstruct_new(old_src, ti, tool):
+    """PreToolUse mirror: project the NEW file content from the proposed edit, BEFORE it lands.
+    On Pre the file on disk is still the OLD version; tool_input carries the intended change."""
+    try:
+        if tool == "Edit":
+            return old_src.replace(ti["old_string"], ti["new_string"], 1), ti["new_string"]
+        if tool == "MultiEdit":
+            new = old_src; sn = []
+            for e in ti.get("edits", []):
+                new = new.replace(e["old_string"], e["new_string"], 1); sn.append(e["new_string"])
+            return new, "\n".join(sn)
+        if tool == "Write":
+            return ti.get("content"), ti.get("content")
+    except Exception:
+        return None, None
+    return None, None
+
 def body_owner(p, new_src, needle):
     if not needle: return None
     pos = new_src.find(needle)
@@ -102,14 +119,21 @@ if "--file" in sys.argv:
     p = plugin_of(absf)
     new_src = text[absf]
 
-    old_src = new_changed = None
+    disk_src = new_src                       # what is currently on disk
+    old_src = event = new_changed = None
     if not sys.stdin.isatty():
         try:
             payload = json.load(sys.stdin)
-            old_src, new_changed = reconstruct_old(new_src, payload.get("tool_input", {}) or {},
-                                                   payload.get("tool_name", ""))
+            event = payload.get("hook_event_name") or payload.get("hookEventName")
+            ti, tool = payload.get("tool_input", {}) or {}, payload.get("tool_name", "")
+            if event == "PreToolUse":            # edit not applied yet: project the NEW content
+                projected, new_changed = reconstruct_new(disk_src, ti, tool)
+                if projected is not None:
+                    old_src, new_src = disk_src, projected
+            else:                                # PostToolUse: disk is NEW, reconstruct the OLD
+                old_src, new_changed = reconstruct_old(disk_src, ti, tool)
         except Exception:
-            pass
+            old_src = None
 
     direct = sorted(dependents.get(absf, set()))
     n = len(transitive_dependents(absf))
@@ -136,7 +160,9 @@ if "--file" in sys.argv:
     if t == "LOCAL" and not api_change:
         sys.exit(0)
 
-    lines = [f"foreshock — you edited {rel(absf)}"]
+    preview = (event == "PreToolUse")
+    lines = [f"foreshock — preview: this change to {rel(absf)} would…" if preview
+             else f"foreshock — you edited {rel(absf)}"]
     if api_change:
         parts = []
         if added: parts.append("+" + ",".join(sorted(added)))
@@ -183,6 +209,20 @@ if "--file" in sys.argv:
             cons = [rel(f) for f in same_lang if re.search(rf"\b{u}\b", text[f])]
             if cons:
                 lines.append(f"  • defines the `{u}` set — if you changed its members, update: " + ", ".join(cons[:6]))
+
+    # ---- Tier 3: deep simulation (opt-in). Apply the projected edit in an isolated copy,
+    #      run the project's real checker, and surface only the NEW diagnostics it introduces. ----
+    if os.environ.get("FORESHOCK_DEEP") and new_src is not None and old_src is not None:
+        try:
+            import deep_check
+            diags = deep_check.run(absf, new_src, ROOT, dependents=list(direct))
+            if diags:
+                lines.append("  • deep check — NEW errors this change introduces (real checker):")
+                lines += ["      ✗ " + d for d in diags[:8]] + (["      …"] if len(diags) > 8 else [])
+            elif diags == []:
+                lines.append("  • deep check: no new type/compile errors introduced ✓")
+        except Exception:
+            pass
 
     print("\n".join(lines))
     sys.exit(0)

@@ -188,6 +188,35 @@ that you've found everything.
 
 ---
 
+## Change preview (Tier 1) & deep simulation (Tier 3)
+
+foreshock fires on **two** events:
+
+- **`PreToolUse` — preview.** *Before* an edit is applied, it projects the change from the
+  proposed `old_string`/`new_string` and shows what it *would* do:
+  `foreshock — preview: this change to X would… • API change: +sum; −add • blast radius: …`.
+  The agent sees the consequences while it can still adjust the edit. Nothing is written to disk.
+- **`PostToolUse` — confirm.** After the edit lands, the familiar `you edited X` packet.
+
+`install.sh` registers both. If you want only the preview, keep the `PreToolUse` entry in
+`~/.claude/settings.json` and drop the `PostToolUse` one.
+
+### Deep simulation — opt-in
+Set `FORESHOCK_DEEP=1` and the preview adds a **real-checker** pass: foreshock copies the repo to
+a temp dir (symlinking `node_modules`), applies the projected edit there, runs the project's own
+checker, and reports **only the diagnostics the change introduces** (baseline-subtracted). Your
+real files are never touched.
+
+```
+  • deep check — NEW errors this change introduces (real checker):
+      ✗ src/calc.ts(1,10): error TS2305: Module './math' has no exported member 'add'.
+```
+
+Checkers wired: **TypeScript/JS** via the project's `tsc` (local `node_modules/.bin/tsc`, else
+`npx tsc`); **Python** falls back to stdlib `py_compile` (syntax only — install `mypy`/`pyflakes`
+for cross-file checks). It's slower (runs a toolchain), which is why it's off by default; the hook
+timeout is raised to 90s when `FORESHOCK_DEEP` is set.
+
 ## 7. Troubleshooting
 
 | Symptom | Likely cause / fix |

@@ -48,10 +48,13 @@ root = find_repo_root(path)
 if not root:
     sys.exit(0)
 
+event = payload.get("hook_event_name") or "PostToolUse"   # Pre = preview, Post = confirm
+deep = bool(os.environ.get("FORESHOCK_DEEP"))             # Tier 3 runs a real checker — give it room
+
 try:
     out = subprocess.run(
         ["python3", ENGINE, "--file", path],
-        capture_output=True, text=True, timeout=15,
+        capture_output=True, text=True, timeout=(90 if deep else 15),
         env={**os.environ, "FS_ROOT": root},
         input=json.dumps(payload),   # pipe the payload so the engine can diff old vs new
     ).stdout.strip()
@@ -61,11 +64,13 @@ except Exception:
 if not out:
     sys.exit(0)  # local-only change — stay quiet
 
+closing = ("\n(Reconsider or adjust the change before applying.)" if event == "PreToolUse"
+           else "\n(Consider these before continuing.)")
 print(json.dumps({
     "systemMessage": out,
     "hookSpecificOutput": {
-        "hookEventName": "PostToolUse",
-        "additionalContext": out + "\n(Consider these before continuing.)",
+        "hookEventName": event,
+        "additionalContext": out + closing,
     },
 }))
 sys.exit(0)
