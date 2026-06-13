@@ -16,8 +16,8 @@ import os, re, sys, glob, json, collections
 
 # ---- plugin registry ----
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import lang_ts, lang_python, lang_java
-PLUGINS = [lang_ts, lang_python, lang_java]
+import lang_ts, lang_python, lang_java, lang_go
+PLUGINS = [lang_ts, lang_python, lang_java, lang_go]
 EXT2PLUGIN = {ext: p for p in PLUGINS for ext in p.EXTENSIONS}
 ALL_EXTS = tuple(EXT2PLUGIN)
 
@@ -48,12 +48,16 @@ for p in PLUGINS:
     ctx[p] = p.build_index(ROOT, pfiles, {f: text[f] for f in pfiles}) if pfiles else {}
 
 # ---- import graph ----
+# a plugin's resolve() may return one path or many (package-as-directory langs like Go)
+def _targets(r):
+    return r if isinstance(r, (list, tuple, set)) else ((r,) if r else ())
+
 imp = collections.defaultdict(set)
 for f in src_files:
     p = plugin_of(f)
     for spec in p.specs(text[f]):
-        t = p.resolve(f, spec, ctx[p])
-        if t and t != f and t in fileset: imp[f].add(t)
+        for t in _targets(p.resolve(f, spec, ctx[p])):
+            if t and t != f and t in fileset: imp[f].add(t)
 dependents = collections.defaultdict(set)
 for a, bs in imp.items():
     for b in bs: dependents[b].add(a)
@@ -193,7 +197,7 @@ if "--file" in sys.argv:
             lines.append("  • no dependent's import contract changed — a behavior change is the only thing to weigh")
 
     covering = sorted(rel(tf) for tf in test_files if plugin_of(tf) is p
-                      and any(p.resolve(tf, spec, ctx[p]) == absf for spec in p.specs(text[tf])))
+                      and any(absf in _targets(p.resolve(tf, spec, ctx[p])) for spec in p.specs(text[tf])))
     if covering:
         lines.append("  • covered by tests: " + ", ".join(covering[:5]) + (" …" if len(covering) > 5 else ""))
 

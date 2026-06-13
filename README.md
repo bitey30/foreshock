@@ -10,7 +10,7 @@
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
   <img alt="Python 3" src="https://img.shields.io/badge/python-3.x-3776AB.svg">
   <img alt="Zero dependencies" src="https://img.shields.io/badge/dependencies-0%20(stdlib)-success.svg">
-  <img alt="Languages" src="https://img.shields.io/badge/languages-TS%20%2F%20JS%20%C2%B7%20Python%20%C2%B7%20Java-0B1120.svg">
+  <img alt="Languages" src="https://img.shields.io/badge/languages-TS%20%2F%20JS%20%C2%B7%20Python%20%C2%B7%20Java%20%C2%B7%20Go-0B1120.svg">
   <img alt="Local only" src="https://img.shields.io/badge/data-local--only%20%C2%B7%20no%20network-555.svg">
 </p>
 
@@ -95,7 +95,8 @@ variant types. **Adding a language is one file.**
 | `lang_ts.py` | TS/JS — `import`/`export … from`, barrels, dynamic `import()`, `require()`, ts/jsconfig path aliases, string-literal unions |
 | `lang_python.py` | Python — absolute + relative imports, `sys.path` resolution, `def`/`class`/const exports, `Enum` + `Literal[…]` |
 | `lang_java.py` | Java — package→FQCN resolution (`import a.b.C;`, static, wildcard), public type/method exports, `enum` |
-| `impact_hook.py` | the `PostToolUse` hook — pipes the tool payload to the engine and injects the packet |
+| `lang_go.py` | Go — package-as-directory imports (`module/sub` → all files in that package), Capitalised exports, typed `const`/`iota` variant groups |
+| `impact_hook.py` | the `PreToolUse` (preview) + `PostToolUse` (confirm) hook — pipes the tool payload to the engine and injects the packet |
 
 **Local-only, like a library.** Pure Python standard library — no dependencies, no API keys, no
 account, no network. It runs as a local subprocess, reads one repo, prints a packet back into your own
