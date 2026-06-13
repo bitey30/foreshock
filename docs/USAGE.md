@@ -32,7 +32,8 @@ shared. If you're offline, it works exactly the same.
 - A repo with a root marker foreshock can find: `.git`, `package.json`, `pyproject.toml`,
   `setup.py`, `go.mod`, `pom.xml`, `build.gradle`, or `Cargo.toml`.
 
-Languages: **TypeScript / JavaScript, Python, Java**. Other files are silently ignored.
+Languages: **TypeScript / JavaScript, Python, Java, Go, Ruby, C#**, plus a **Django** framework
+adapter. Other files are silently ignored.
 
 ---
 
@@ -137,7 +138,8 @@ Line by line:
 | **`who imports this:`** | The direct dependents, each annotated with the symbols it pulls. A **`→`** marks the ones importing a *changed* symbol — those are the call sites to re-check. The rest are just FYI. |
 | **`covered by tests:`** | Test files that import the edited module — your safety net for this change. |
 
-For **variant types** (TS string-literal unions, Python `Enum`/`Literal`, Java `enum`),
+For **variant types** (TS string unions, Python `Enum`/`Literal`, Java/C# `enum`, Go typed
+`const`/`iota`),
 adding a member produces:
 
 ```

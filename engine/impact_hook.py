@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-foreshock PostToolUse hook (USER-LEVEL, self-rooting).
+foreshock Pre/PostToolUse hook (USER-LEVEL, self-rooting).
 
-After every Edit/Write/MultiEdit, run impact_engine.py on the changed file and inject
-the CONTEXT PACKET into the agent's next turn. Unlike the project-scoped variant, this
-roots itself at the EDITED FILE's repo (nearest .git / package.json ancestor) instead of
-relying on CLAUDE_PROJECT_DIR — so it fires no matter how the session was launched.
+On every Edit/Write/MultiEdit, run impact_engine.py on the changed file and inject the CONTEXT
+PACKET into the agent's next turn — as a preview before the edit (PreToolUse) and a confirm after
+(PostToolUse). It roots itself at the EDITED FILE's repo (nearest .git / package.json / go.mod …
+ancestor) instead of relying on CLAUDE_PROJECT_DIR, so it fires no matter how the session launched.
 
-Fails safe (exit 0, silent) on anything unexpected: non-JS/TS file, no engine, no repo
-root, engine error, or empty output (a local-only change).
+Fails safe (exit 0, silent) on anything unexpected: unsupported file type, no engine, no repo root,
+engine error, or empty output (a local-only change).
 """
 import sys, json, os, subprocess
 
@@ -16,10 +16,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ENGINE = os.path.join(HERE, "impact_engine.py")
 
 
-EXTS = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".java")
-# repo-root markers across ecosystems (Python/Java repos have no package.json)
-ROOT_MARKERS = (".git", "package.json", "pyproject.toml", "setup.py", "setup.cfg",
-                "go.mod", "pom.xml", "build.gradle", "build.gradle.kts", "Cargo.toml")
+# must cover every extension the lang_*.py plugins handle (keep in sync when adding a language)
+EXTS = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".java", ".go", ".rb", ".cs")
+# repo-root markers across ecosystems
+ROOT_MARKERS = (".git", "package.json", "pyproject.toml", "setup.py", "setup.cfg", "go.mod",
+                "go.work", "pom.xml", "build.gradle", "build.gradle.kts", "Cargo.toml", "Gemfile")
 
 
 def find_repo_root(file_path):
@@ -67,9 +68,11 @@ if not out:
 closing = ("\n(Reconsider or adjust the change before applying.)" if event == "PreToolUse"
            else "\n(Consider these before continuing.)")
 
-# FORESHOCK_RATE=1 → log this packet and ask the agent to rate its usefulness 1–5 (off by default)
+# FORESHOCK_RATE=1 → log this packet and ask the agent to rate its usefulness 1–5 (off by default).
+# Only on the PREVIEW (PreToolUse): one rating per edit, and it captures the case where the preview
+# made the agent ABANDON the edit (no PostToolUse then fires).
 rate_ask = ""
-if os.environ.get("FORESHOCK_RATE"):
+if os.environ.get("FORESHOCK_RATE") and event == "PreToolUse":
     try:
         import re, foreshock_session
         session = payload.get("session_id", "default")
