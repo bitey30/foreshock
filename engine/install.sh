@@ -11,13 +11,17 @@ SETTINGS="$HOME/.claude/settings.json"
 
 # 1. install the engine, hook, deep-check, and all language plugins
 mkdir -p "$HOOKS"
-cp "$HERE"/impact_engine.py "$HERE"/impact_hook.py "$HERE"/deep_check.py "$HERE"/lang_*.py "$HERE"/framework_*.py "$HOOKS/"
+cp "$HERE"/impact_engine.py "$HERE"/impact_hook.py "$HERE"/deep_check.py "$HERE"/lang_*.py "$HERE"/framework_*.py "$HERE"/foreshock_*.py "$HOOKS/"
 chmod +x "$HOOKS/impact_hook.py"
-echo "✓ installed engine + hook + deep_check + $(ls "$HERE"/lang_*.py | wc -l | tr -d ' ') language plugins + $(ls "$HERE"/framework_*.py | wc -l | tr -d ' ') framework adapters → $HOOKS"
+echo "✓ installed engine + hook + deep_check + ratings + $(ls "$HERE"/lang_*.py | wc -l | tr -d ' ') language plugins + $(ls "$HERE"/framework_*.py | wc -l | tr -d ' ') framework adapters → $HOOKS"
 
 # the hook object registered on both events (timeout covers Tier 3 deep mode when FORESHOCK_DEEP=1)
 read -r -d '' HOOKOBJ <<'JSON'
 { "matcher": "Edit|Write|MultiEdit", "hooks": [ { "type": "command", "command": "python3 \"$HOME/.claude/hooks/impact_hook.py\"", "timeout": 90 } ] }
+JSON
+# Stop hook: end-of-session usefulness review (self-gates on FORESHOCK_RATE)
+read -r -d '' STOPOBJ <<'JSON'
+{ "hooks": [ { "type": "command", "command": "python3 \"$HOME/.claude/hooks/foreshock_stop.py\"" } ] }
 JSON
 
 if command -v jq >/dev/null 2>&1; then
@@ -25,16 +29,18 @@ if command -v jq >/dev/null 2>&1; then
   cp "$SETTINGS" "$SETTINGS.bak"
   tmp="$(mktemp)"
   # idempotent: strip any existing impact_hook.py entries, then re-add to Pre + Post
-  if jq --argjson h "$HOOKOBJ" '
-        (.hooks.PreToolUse  //= []) | (.hooks.PostToolUse //= []) |
+  if jq --argjson h "$HOOKOBJ" --argjson s "$STOPOBJ" '
+        (.hooks.PreToolUse  //= []) | (.hooks.PostToolUse //= []) | (.hooks.Stop //= []) |
         .hooks.PreToolUse  |= map(select(((.hooks[0].command // "") | test("impact_hook.py")) | not)) |
         .hooks.PostToolUse |= map(select(((.hooks[0].command // "") | test("impact_hook.py")) | not)) |
-        .hooks.PreToolUse  += [$h] | .hooks.PostToolUse += [$h]
+        .hooks.Stop        |= map(select(((.hooks[0].command // "") | test("foreshock_stop.py")) | not)) |
+        .hooks.PreToolUse  += [$h] | .hooks.PostToolUse += [$h] | .hooks.Stop += [$s]
       ' "$SETTINGS" > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
     mv "$tmp" "$SETTINGS"
-    echo "✓ registered PreToolUse (preview) + PostToolUse (confirm) hooks in $SETTINGS (backup: $SETTINGS.bak)"
+    echo "✓ registered Pre (preview) + Post (confirm) + Stop (session review) hooks in $SETTINGS (backup: $SETTINGS.bak)"
     echo "  → restart Claude Code; hooks load at session start."
     echo "  → Tier 3 deep simulation is opt-in: export FORESHOCK_DEEP=1 (runs the project's real checker)."
+    echo "  → 1–5 usefulness ratings + end-of-session review are opt-in: export FORESHOCK_RATE=1."
   else
     rm -f "$tmp"
     echo "⚠ couldn't auto-edit $SETTINGS — add an Edit|Write|MultiEdit hook calling impact_hook.py under BOTH .hooks.PreToolUse and .hooks.PostToolUse."

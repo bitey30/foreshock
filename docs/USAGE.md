@@ -217,6 +217,37 @@ Checkers wired: **TypeScript/JS** via the project's `tsc` (local `node_modules/.
 for cross-file checks). It's slower (runs a toolchain), which is why it's off by default; the hook
 timeout is raised to 90s when `FORESHOCK_DEEP` is set.
 
+## Rate usefulness — turn impressions into data (`FORESHOCK_RATE=1`)
+
+To find out whether the packets actually help (vs. just feel helpful), turn on rating:
+
+```bash
+export FORESHOCK_RATE=1
+```
+
+Now every packet ends with a prompt the agent can act on:
+
+```
+[foreshock] How useful was this to your NEXT action? Rate 1–5 (1=noise, 5=changed what I do):
+python3 "$HOME/.claude/hooks/foreshock_rate.py" <session> <id> <N>
+```
+
+Ratings accumulate per session in `~/.cache/foreshock/sessions/<session>.jsonl`. When the session
+ends, the **Stop hook** surfaces a review, or run it yourself any time:
+
+```bash
+python3 engine/foreshock_review.py            # most recent session
+foreshock session review — 7 packet(s) fired, 6 rated
+  average usefulness: 3.8/5    [1★:1 2★:0 3★:1 4★:2 5★:2]
+  most useful: src/auth.ts (5★), src/db/schema.ts (5★)
+  noise:       src/util/log.ts (1★)
+```
+
+It's **off by default** (no rating prompt, no logging) so it never bloats normal use. Silent edits
+(local, zero-dependent) aren't logged — only packets that actually fired get rated, so there's no
+rating noise. Over a few weeks of real sessions this gives you grounded numbers (and the per-file
+hit/miss pattern) instead of impressions — and it's the raw material for outcome-calibrated weighting.
+
 ## 7. Troubleshooting
 
 | Symptom | Likely cause / fix |

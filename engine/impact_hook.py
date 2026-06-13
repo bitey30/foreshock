@@ -66,11 +66,27 @@ if not out:
 
 closing = ("\n(Reconsider or adjust the change before applying.)" if event == "PreToolUse"
            else "\n(Consider these before continuing.)")
+
+# FORESHOCK_RATE=1 → log this packet and ask the agent to rate its usefulness 1–5 (off by default)
+rate_ask = ""
+if os.environ.get("FORESHOCK_RATE"):
+    try:
+        import re, foreshock_session
+        session = payload.get("session_id", "default")
+        tm = re.search(r"\[(LOCAL|narrow|shared|SHARED-CORE)\]", out)
+        pid = foreshock_session.log_packet(session, os.path.relpath(path, root), event,
+                                           tm.group(1) if tm else "", "API change" in out)
+        rate_ask = (f"\n[foreshock] How useful was this to your NEXT action? Rate 1–5 "
+                    f"(1=noise, 5=changed what I do): "
+                    f'python3 "$HOME/.claude/hooks/foreshock_rate.py" {session} {pid} <N>')
+    except Exception:
+        rate_ask = ""
+
 print(json.dumps({
     "systemMessage": out,
     "hookSpecificOutput": {
         "hookEventName": event,
-        "additionalContext": out + closing,
+        "additionalContext": out + closing + rate_ask,
     },
 }))
 sys.exit(0)
