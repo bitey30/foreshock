@@ -21,9 +21,9 @@ on, blind to what it just put at risk. **foreshock gives it peripheral vision.**
 edit, it hands the agent a short context packet — *what you touched → who depends on it → what to
 check* — and then gets out of the way.
 
-It rides **inside** the agent loop (Claude Code / Cursor / Codex) as a `PostToolUse` hook. Not a
-linter, not a dashboard, not a post-commit report — a context layer the agent consumes *before* the
-bug exists.
+It rides **inside** the agent loop (Claude Code / Cursor / Codex) as a hook that fires **before** an
+edit (a preview — *"this change would…"*) and **after** it (a confirm). Not a linter, not a dashboard,
+not a post-commit report — a context layer the agent consumes *before the bug exists.*
 
 <p align="center">
   <img src="assets/blast-radius-demo.svg" alt="foreshock detecting blast radius live during an agent edit to Flask's url_for" width="780">
@@ -57,15 +57,32 @@ the change, not a raw file count:
   ones that import a *changed* symbol. Kills the "49 files but only 2 are affected" noise.
 - **Covered by tests** — the test files that exercise the edited module.
 - **Variant / completeness** — *"you added `bar` to the `Foo` set — handle the new case at ⟨dispatch
-  sites the compiler won't flag⟩"* (TS string-literal unions, Python `Enum`/`Literal`, Java `enum`).
+  sites the compiler won't flag⟩"* (TS string unions, Python `Enum`/`Literal`, Java/C# `enum`, Go typed
+  `const`/`iota`).
 
-And critically, it stays **silent** on local, zero-dependent, non-API edits. Signal, not noise.
+The "who imports this" list is **ranked** — importers of a *changed* symbol (`→`) come first, so the
+ones that matter survive the cap. And critically, it stays **silent** on local, zero-dependent,
+non-API edits. Signal, not noise.
+
+## Preview, deep simulation & frameworks
+
+- **Preview before you touch it.** On `PreToolUse`, foreshock projects the edit from the proposed
+  change and shows what it *would* do — *"preview: this change would… API change: +sum; −add; blast
+  radius: 33 [SHARED-CORE]"* — so the agent can adjust before anything is written.
+- **Deep simulation (opt-in).** Set `FORESHOCK_DEEP=1` and the preview runs the project's **real**
+  checker on an isolated copy and reports only the diagnostics the change *introduces* — e.g.
+  `src/calc.ts(1,10): error TS2305: Module './math' has no exported member 'add'.` — before the edit
+  lands. Your files are never touched. (tsc · py_compile/mypy · javac · go build · ruby -c.)
+- **Framework edges.** Adapters recover coupling the import graph can't see — the Django adapter links
+  `ForeignKey("app.Model")` string references that have no `import`. (Next.js / Rails to come.)
+
+Details in [docs/USAGE.md](docs/USAGE.md).
 
 ## Quickstart
 
 ```bash
 git clone https://github.com/bitey30/foreshock && cd foreshock
-./engine/install.sh        # installs the hook into ~/.claude/hooks + registers PostToolUse
+./engine/install.sh        # installs into ~/.claude/hooks + registers the Pre (preview) & Post (confirm) hooks
 ```
 
 Restart Claude Code and edit a file that others import — the packet appears in the agent's next turn.
@@ -109,10 +126,13 @@ agent's context. Nothing is collected, nothing leaves your machine, works fully 
 
 foreshock reads **import-shaped** coupling. It's strong where imports *are* the coupling
 (libraries, SDKs, shared modules) and weak where coupling is conventional or runtime (e.g. Next.js app
-routes wired by file convention). Parsing is regex-based, not a full compiler front-end, so exotic
-re-exports / reflection / dynamic dispatch can slip by. It's a **context layer, not a guarantee** — a
-prompt to look, not proof you've found everything. The honest write-up of where it fails (and why
-it's a library tool, not an app tool) lives in [`experiments/bugcatch-deviation/`](experiments/bugcatch-deviation/).
+routes wired by file convention). **Framework adapters** (Django today) begin to recover that
+app-coupling, but it's early. Parsing is regex-based, not a full compiler front-end, so exotic
+re-exports / reflection / dynamic dispatch can slip by — and per-language symbol granularity varies
+(Ruby/C# resolve at file/namespace level, so they show *who* depends without the per-symbol `→`).
+It's a **context layer, not a guarantee** — a prompt to look, not proof you've found everything. The
+honest write-up of where it fails (and why it's a library tool, not an app tool) lives in
+[`experiments/bugcatch-deviation/`](experiments/bugcatch-deviation/).
 
 ## License
 
