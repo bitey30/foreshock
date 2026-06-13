@@ -63,7 +63,7 @@ For each edit, the engine emits a **diff-aware, symbol-level** packet describing
 the change, not a raw file count. A packet reads like this:
 
 ```text
-foreshock — you edited src/auth/session.ts
+foreshock — preview: this change to src/auth/session.ts would…
   • API change: ~validateToken (declaration)
   • blast radius: 11 file(s) import this [SHARED-CORE]
   • who imports this:
@@ -103,17 +103,29 @@ non-API edits. Signal, not noise.
 - **Framework edges.** Adapters recover coupling the import graph can't see — the Django adapter links
   `ForeignKey("app.Model")` string references that have no `import`. (Next.js / Rails to come.)
 
+Everything beyond the one default preview packet is **off unless you ask for it** (keeping the agent's
+context lean):
+
+| env flag | effect |
+|---|---|
+| `FORESHOCK_CONFIRM=1` | also emit the after-edit *confirm* packet (default is preview-only) |
+| `FORESHOCK_DEEP=1` | run the project's real checker on an isolated copy; report only the *new* errors |
+| `FORESHOCK_SQL=1` | enable the SQL schema plugin (tables/columns, FK edges, `CHECK` variants) |
+| `FORESHOCK_RATE=1` | append a 1–5 usefulness rating prompt + an end-of-session review |
+
 Details in [docs/USAGE.md](docs/USAGE.md).
 
 ## Quickstart
 
 ```bash
 git clone https://github.com/bitey30/foreshock && cd foreshock
-./engine/install.sh        # installs into ~/.claude/hooks + registers the Pre (preview) & Post (confirm) hooks
+./engine/install.sh        # installs into ~/.claude/hooks; default = one preview packet per edit
 ```
 
 Restart Claude Code and edit a file that others import — the packet appears in the agent's next turn.
-The hook **self-roots** to each edited file's repo, so one global install works across every project.
+The hook **self-roots** to each edited file's repo, so one global install works across every project. It
+installs at the **user level** — every repo, every session — and is **self-healing**: a `SessionStart`
+hook re-registers foreshock if `~/.claude/settings.json` ever loses the entries, so it can't drift off.
 
 > Re-run `./engine/install.sh` after changing anything in `engine/` — the global copy doesn't
 > auto-update, and a stale copy gives weaker packets.
@@ -150,7 +162,8 @@ variant types. **Adding a language is one file.**
 | `lang_csharp.py` | C# — `using` namespace imports (a namespace spans many files), public type/method exports, `enum` variants |
 | `lang_sql.py` | SQL — *opt-in* (`FORESHOCK_SQL=1`). Tables + qualified `table.column` as symbols, FK/`FROM`/`JOIN` as edges, `CHECK (col IN …)` as variants. Precise: columns count only when qualified |
 | `framework_django.py` | Django adapter — recovers string-FK model coupling (`ForeignKey("app.Model")`) the import graph can't see |
-| `impact_hook.py` | the `PreToolUse` (preview) + `PostToolUse` (confirm) hook — pipes the tool payload to the engine and injects the packet |
+| `impact_hook.py` | the hook — pipes the edit payload to the engine and injects the packet (preview by default; confirm opt-in) |
+| `deep_check.py` · `foreshock_*.py` | Tier-3 deep simulation; opt-in 1–5 ratings + end-of-session review; `SessionStart` self-heal |
 
 **Local-only, like a library.** Pure Python standard library — no dependencies, no API keys, no
 account, no network. It runs as a local subprocess, reads one repo, prints a packet back into your own
