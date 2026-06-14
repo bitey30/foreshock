@@ -241,13 +241,15 @@ if "--file" in sys.argv:
             else:                  tag = ""
             rows.append((bool(hit), ("→ " if hit else "  ") + f"{rel(d)}{tag}"))
             if hit: affected.append(rel(d))
-        rows.sort(key=lambda r: not r[0])          # importers of a CHANGED symbol (→) first, then by name
+        hits = [t for h, t in rows if h]               # importers of a CHANGED symbol — actionable
+        fyi  = [t for h, t in rows if not h]            # import the module, not the changed symbol
+        shown = hits[:10] + fyi[:3]                      # go deep on what's affected, cap the noise tight
         lines.append("  • who imports this:")
-        lines += ["      " + r for _, r in rows[:8]]
-        if len(rows) > 8:
-            hidden_hits = sum(1 for h, _ in rows[8:] if h)
-            extra = f", incl. {hidden_hits} more importing a changed symbol" if hidden_hits else ""
-            lines.append(f"      … (+{len(rows) - 8} more{extra})")
+        lines += ["      " + t for t in shown]
+        if len(rows) > len(shown):
+            hh = len(hits) - len(hits[:10])
+            extra = f", incl. {hh} importing a changed symbol" if hh else ""
+            lines.append(f"      … (+{len(rows) - len(shown)} more{extra})")
         if changed and affected:
             lines.append("  • → = imports a CHANGED symbol — re-check those call sites")
         elif content_only:
