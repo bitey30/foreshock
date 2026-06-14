@@ -73,10 +73,15 @@ foreshock — preview: this change to src/auth/session.ts would…
   • API change: ~validateToken (declaration)
   • blast radius: 11 file(s) import this [SHARED-CORE]
   • who imports this:
-      → src/api/middleware.ts (validateToken)
+      → src/api/guard.ts (validateToken)
       → src/api/login.ts (validateToken)
-        src/util/jwt.ts (decode)
-      … (+6 more)
+      → src/api/logout.ts (validateToken)
+      → src/api/middleware.ts (validateToken)
+      → src/api/refresh.ts (validateToken)
+        src/util/a.ts (decode)
+        src/util/b.ts (decode)
+        src/util/c.ts (decode)
+      … (+3 more)
   • → = imports a CHANGED symbol — re-check those call sites
   • covered by tests: src/auth/session.test.ts
 ```
@@ -105,7 +110,7 @@ non-API edits. Signal, not noise.
 - **Deep simulation (opt-in).** Set `FORESHOCK_DEEP=1` and the preview runs the project's **real**
   checker on an isolated copy and reports only the diagnostics the change *introduces* — e.g.
   `src/calc.ts(1,10): error TS2305: Module './math' has no exported member 'add'.` — before the edit
-  lands. Your files are never touched. (tsc · py_compile/mypy · javac · go build · ruby -c.)
+  lands. Your files are never touched. (tsc · mypy → pyflakes → py_compile · javac · go build · ruby -c.)
 - **Framework edges.** Adapters recover coupling the import graph can't see — the Django adapter links
   `ForeignKey("app.Model")` string references that have no `import`. (Next.js / Rails to come.)
 
@@ -155,7 +160,8 @@ job of the ratings/eval loop ([`FORESHOCK_RATE`](docs/USAGE.md)), not a golden-f
 
 A **language-agnostic core + one plugin per language.** `impact_engine.py` owns the import graph,
 blast-radius, and the packet; each `lang_*.py` owns its language's imports, resolution, exports, and
-variant types. **Adding a language is one file.**
+variant types. **Adding a language is essentially one file** — drop in a `lang_*.py` and register it
+(one line in the plugin list, plus its extensions in the hook).
 
 | | |
 |---|---|
