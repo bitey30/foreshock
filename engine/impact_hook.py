@@ -83,8 +83,9 @@ if os.environ.get("FORESHOCK_RATE") and event == "PreToolUse":
         import re, foreshock_session
         session = payload.get("session_id", "default")
         tm = re.search(r"\[(LOCAL|narrow|shared|SHARED-CORE)\]", out)
+        flagged = [p for p in re.findall(r"^\s+→\s+(\S+)", out, re.M) if "/" in p or "." in p]
         pid = foreshock_session.log_packet(session, os.path.relpath(path, root), event,
-                                           tm.group(1) if tm else "", "API change" in out)
+                                           tm.group(1) if tm else "", "API change" in out, flagged)
         rate_ask = (f"\n[foreshock] How useful was this to your NEXT action? Rate 1–5 "
                     f"(1=noise, 5=changed what I do): "
                     f'python3 "$HOME/.claude/hooks/foreshock_rate.py" {session} {pid} <N>')
