@@ -68,29 +68,35 @@ try:
 except Exception:
     sys.exit(0)
 
-if not out:
-    sys.exit(0)  # local-only change — stay quiet
-
-closing = ("\n(Reconsider or adjust the change before applying.)" if event == "PreToolUse"
-           else "\n(Consider these before continuing.)")
-
-# FORESHOCK_RATE=1 → log this packet and ask the agent to rate its usefulness 1–5 (off by default).
-# Only on the PREVIEW (PreToolUse): one rating per edit, and it captures the case where the preview
-# made the agent ABANDON the edit (no PostToolUse then fires).
-rate_ask = ""
+# FORESHOCK_RATE: log EVERY preview edit (even silent ones) so the behavioral proxy's denominator
+# — "did a later edit touch a flagged dependent?" — sees ALL edits, not just the ones that fired a
+# packet. (A flagged dependent fixed by a silent leaf edit must still count as "acted on".)
+# Only fired packets (non-empty out) get a rating prompt.
+pid = None
 if os.environ.get("FORESHOCK_RATE") and event == "PreToolUse":
     try:
         import re, foreshock_session
-        session = payload.get("session_id", "default")
         tm = re.search(r"\[(LOCAL|narrow|shared|SHARED-CORE)\]", out)
         flagged = [p for p in re.findall(r"^\s+→\s+(\S+)", out, re.M) if "/" in p or "." in p]
-        pid = foreshock_session.log_packet(session, os.path.relpath(path, root), event,
-                                           tm.group(1) if tm else "", "API change" in out, flagged)
-        rate_ask = (f"\n[foreshock] How useful was this to your NEXT action? Rate 1–5 "
-                    f"(1=noise, 5=changed what I do): "
-                    f'python3 "$HOME/.claude/hooks/foreshock_rate.py" {session} {pid} <N>')
+        for m in re.findall(r"handle the new case at:\s*(.+)", out):   # variant dispatch sites count too
+            flagged += [s.strip() for s in m.split(",") if "/" in s or "." in s]
+        pid = foreshock_session.log_packet(payload.get("session_id", "default"),
+                                           os.path.relpath(path, root), event,
+                                           tm.group(1) if tm else "", "API change" in out,
+                                           list(dict.fromkeys(flagged)), fired=bool(out))
     except Exception:
-        rate_ask = ""
+        pid = None
+
+if not out:
+    sys.exit(0)  # silent packet — nothing to inject (the edit was still logged above, for coverage)
+
+closing = ("\n(Reconsider or adjust the change before applying.)" if event == "PreToolUse"
+           else "\n(Consider these before continuing.)")
+rate_ask = ""
+if pid is not None:
+    rate_ask = (f"\n[foreshock] How useful was this to your NEXT action? Rate 1–5 "
+                f"(1=noise, 5=changed what I do): "
+                f'python3 "$HOME/.claude/hooks/foreshock_rate.py" {payload.get("session_id", "default")} {pid} <N>')
 
 print(json.dumps({
     "systemMessage": out,
