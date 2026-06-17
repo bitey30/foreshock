@@ -211,7 +211,27 @@ if "--file" in sys.argv:
     api_change = bool(added or removed or decl_touched or union_added or union_removed)
     content_only = (old_src is not None) and not api_change
 
-    if t == "LOCAL" and not api_change:
+    # who imports the edited file, and which of them import a CHANGED symbol (→ "affected")
+    rows, affected = [], []
+    for d in direct:
+        used = plugin_of(d).imported_names(text[d], absf, d, ctx[plugin_of(d)])
+        hit = used & changed if changed else set()
+        if used:                    tag = f" ({', '.join(sorted(used)[:4])})"
+        elif (d, absf) in fw_edges: tag = " (framework relation — no import)"
+        else:                       tag = ""
+        rows.append((bool(hit), ("→ " if hit else "  ") + f"{rel(d)}{tag}"))
+        if hit: affected.append(rel(d))
+
+    # ---- precision gate: stay silent unless the edit is actually actionable ----
+    # A small/local edit only earns a packet if something can BREAK (a contract change that hits an
+    # importer), a variant case must be handled, or it's a wide hub change. Content-only body edits,
+    # and no-op API adds, below SHARED-CORE are suppressed — that's most of the noise. NOTE: a tiny
+    # blast radius still fires if it breaks importers (e.g. a rename used in 2 files) — that's the point.
+    is_variant = bool(union_added or union_removed)
+    if old_src is not None:                       # diff-aware (Edit / MultiEdit)
+        if not (is_variant or (api_change and affected) or t == "SHARED-CORE"):
+            sys.exit(0)
+    elif t == "LOCAL":                            # diff-blind (manual --file / Write): light suppression
         sys.exit(0)
 
     preview = (event == "PreToolUse")
@@ -231,16 +251,7 @@ if "--file" in sys.argv:
                      "  • content-only: exported API unchanged — dependents' import contract intact")
     lines.append(f"  • blast radius: {n} file(s) import this [{t}]")
 
-    if direct:
-        rows, affected = [], []
-        for d in direct:
-            used = plugin_of(d).imported_names(text[d], absf, d, ctx[plugin_of(d)])
-            hit = used & changed if changed else set()
-            if used:               tag = f" ({', '.join(sorted(used)[:4])})"
-            elif (d, absf) in fw_edges: tag = " (framework relation — no import)"
-            else:                  tag = ""
-            rows.append((bool(hit), ("→ " if hit else "  ") + f"{rel(d)}{tag}"))
-            if hit: affected.append(rel(d))
+    if rows:
         hits = [t for h, t in rows if h]               # importers of a CHANGED symbol — actionable
         fyi  = [t for h, t in rows if not h]            # import the module, not the changed symbol
         shown = hits[:10] + fyi[:3]                      # go deep on what's affected, cap the noise tight
